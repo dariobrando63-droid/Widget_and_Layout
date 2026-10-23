@@ -2,6 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
+
 import '../../app/theme/app_theme.dart';
 import '../../core/notifications/web_notification_service.dart';
 import '../../core/utils/format_waktu.dart';
@@ -23,6 +27,7 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
+  final AudioPlayer _audioPlayer = AudioPlayer();
   int _lastCompleted = 0;
   int _lastSessionCompletionEvents = 0;
 
@@ -57,10 +62,12 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     final completed = widget.controller.completedFocusToday;
     final justCompleted = completed > _lastCompleted;
     final sessionCompleted =
-        widget.controller.sessionCompletionEvents > _lastSessionCompletionEvents;
+        widget.controller.sessionCompletionEvents >
+        _lastSessionCompletionEvents;
     _lastCompleted = completed;
     _lastSessionCompletionEvents = widget.controller.sessionCompletionEvents;
     if (!mounted) return;
+    if (sessionCompleted) unawaited(_playCompletionSound());
     if (sessionCompleted && WebNotificationService.isPermissionGranted) {
       final mode = widget.controller.lastCompletedMode;
       try {
@@ -82,6 +89,14 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     });
   }
 
+  Future<void> _playCompletionSound() async {
+    try {
+      await _audioPlayer.play(AssetSource('sounds/timer_done.mp3'));
+    } catch (error) {
+      if (mounted) _showMessage('Suara timer gagal diputar: $error');
+    }
+  }
+
   Future<void> _enableWebNotifications() async {
     try {
       final granted = await WebNotificationService.requestPermission();
@@ -101,10 +116,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }
 
@@ -203,10 +215,9 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                     if (kIsWeb) ...[
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
-                        onPressed:
-                            WebNotificationService.isPermissionGranted
-                                ? null
-                                : _enableWebNotifications,
+                        onPressed: WebNotificationService.isPermissionGranted
+                            ? null
+                            : _enableWebNotifications,
                         icon: const Icon(Icons.notifications_active_outlined),
                         label: Text(
                           WebNotificationService.isPermissionGranted
@@ -253,6 +264,7 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(_onControllerChanged);
+    unawaited(_audioPlayer.dispose());
     super.dispose();
   }
 }

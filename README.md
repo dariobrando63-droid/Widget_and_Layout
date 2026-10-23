@@ -15,6 +15,7 @@ melalui browser lokal.
 - Validasi durasi serta preview satu siklus pada lembar pengaturan.
 - Notifikasi browser saat sesi selesai, selama halaman tetap terbuka dan izin
   notifikasi sudah diberikan.
+- Suara aset lokal saat sesi timer selesai.
 
 Tidak ada akun, server, database, notifikasi terjadwal, statistik, atau pencatatan
 mata kuliah. Notifikasi web tidak dijamin saat tab/browser ditutup atau halaman
