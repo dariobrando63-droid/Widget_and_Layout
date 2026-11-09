@@ -71,7 +71,7 @@ class PomodoroController extends ChangeNotifier {
     if (timer.status == TimerStatus.running && remainingSeconds == 0) {
       _ticker?.cancel();
       _ticker = null;
-      _finishSession(now);
+      _finishSession(now, notifyCompletion: true);
       await _persist();
     } else {
       tick.value = remainingSeconds;

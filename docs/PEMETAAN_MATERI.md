@@ -1,36 +1,47 @@
 # Pemetaan Materi
 
-Dokumen ini menghubungkan konsep dasar Dart dan Flutter dengan implementasi
-Pomodoro Belajar.
+Dokumen ini menghubungkan konsep Dart dan Flutter dengan fitur Pomodoro Belajar.
 
 ## Dart
 
 | Materi | Contoh |
 | --- | --- |
-| Variabel, konstanta, dan tipe data | `PomodoroSettings`, `PomodoroTimerState`, serta konstanta di `core/constants/app_constants.dart` |
-| Enum dan percabangan | `PomodoroMode`, `TimerStatus`, dan `switch` pada engine |
-| Fungsi dan nilai balik | Formatter waktu, validasi model, serta fungsi preview siklus |
-| Koleksi dan perulangan | Pembuatan titik siklus dan daftar urutan sesi |
-| Null safety dan operator | Nilai opsional `endsAt`, `tryParse`, `??`, dan `?.` |
-| Async/await | Memuat dan menyimpan snapshot melalui `PomodoroStorage` |
+| Variabel, konstanta, dan tipe data | `Akun`, `PomodoroSettings`, `PomodoroTimerState`, dan konstanta aplikasi |
+| Enum dan percabangan | `PomodoroMode`, `TimerStatus`, dan perpindahan mode pada engine |
+| Fungsi dan nilai balik | Validator form, formatter waktu, dan preview siklus |
+| Koleksi dan perulangan | Daftar akun lokal, pertanyaan keamanan, dan titik siklus |
+| Null safety | Sesi opsional, deadline timer, dan hasil navigasi |
+| Async/await | Memulihkan sesi akun/tamu serta menyimpan akun dan timer |
+| Hash dan normalisasi | Salt acak, hash kredensial lokal, dan normalisasi jawaban |
 
 ## Flutter
 
 | Materi | Contoh |
 | --- | --- |
-| `StatelessWidget` | Selector mode, kontrol timer, kartu hitungan, dan field durasi |
-| `StatefulWidget` | Layar timer untuk lifecycle dan sheet pengaturan untuk input |
-| Komposisi widget | `TimerScreen` tersusun dari widget kecil dengan satu tanggung jawab |
-| State bawaan Flutter | `ChangeNotifier`, `AnimatedBuilder`, dan `ValueListenableBuilder` |
-| Form dan validasi | `Form`, `TextFormField`, dan validasi rentang durasi |
+| `StatelessWidget` | Tombol pil dan kartu bersama |
+| `StatefulWidget` | Form akun, onboarding, profil, dan lifecycle timer |
+| Komposisi widget | Layar timer dan form disusun dari komponen terfokus |
+| State reaktif | `ChangeNotifier`, `AnimatedBuilder`, dan `ValueListenableBuilder` |
+| Form dan validasi | `Form`, `TextFormField`, dropdown pertanyaan, serta validator bersama |
+| Navigasi | Rute masuk, sesi tamu, daftar, pemulihan sandi, dan profil |
 | Layout responsif | `SafeArea`, `ListView`, `Center`, dan `ConstrainedBox` |
-| Tema dan aset | Tema Material 3 serta ilustrasi PNG lokal |
+| Tema dan aset | Tema Material 3, font lokal, dan ilustrasi tomat |
 
-## Desain aplikasi
+## Arsitektur
 
-- `PomodoroEngine` memuat aturan hitung waktu dan perpindahan mode secara
+- `PomodoroEngine` menangani perhitungan sisa waktu dan transisi mode secara
   terpisah dari UI.
-- `PomodoroController` mengoordinasikan state, timer periodik UI, dan siklus.
-- `PomodoroStorage` membatasi akses plugin penyimpanan pada lapisan data.
-- Uji unit mencakup aturan waktu dan transisi; widget test mencakup kontrol
-  utama dan pengaturan.
+- `PomodoroController` mengoordinasikan state timer, deadline, pemulihan, dan
+  penyimpanan.
+- `AuthController` mengelola akun lokal, sesi akun/tamu, pemulihan, dan aturan
+  percobaan masuk; `AuthStorage` membatasi akses penyimpanan akun.
+- `PomodoroStorage` membuat ruang penyimpanan berdasarkan ID akun atau sesi
+  tamu agar timer tidak bercampur.
+- `AppTheme` dan widget bersama menyatukan gaya lintas layar.
+
+## Pengujian
+
+Unit test mencakup validasi alur autentikasi, sesi tamu,
+penguncian/pemulihan akun, isolasi penyimpanan timer, perhitungan waktu, dan
+siklus sesi. Widget test mencakup login dan akses tanpa akun, kontrol timer,
+serta pengaturan.

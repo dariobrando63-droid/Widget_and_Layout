@@ -9,14 +9,16 @@ import 'models/pomodoro_models.dart';
 
 /// Menangani persistensi lokal tanpa membocorkan plugin ke UI.
 class PomodoroStorage {
-  PomodoroStorage(this._preferences);
+  PomodoroStorage(this._preferences, {this.accountId = 'guest'});
 
   final SharedPreferences _preferences;
+  final String accountId;
+  String get _storageKey => 'pomodoro_${accountId}_state_v2';
 
   /// Membaca snapshot; data rusak dikembalikan ke nilai awal yang aman.
   PomodoroData load({DateTime? now}) {
     final currentDate = kunciTanggalLokal(now ?? DateTime.now());
-    final raw = _preferences.getString(kunciPenyimpananPomodoro);
+    final raw = _preferences.getString(_storageKey);
     if (raw == null) {
       return PomodoroData(localDateKey: currentDate);
     }
@@ -50,7 +52,7 @@ class PomodoroStorage {
   /// Menulis satu JSON agar snapshot timer dan penghitung hari tidak terpisah.
   Future<void> save(PomodoroData data) async {
     final saved = await _preferences.setString(
-      kunciPenyimpananPomodoro,
+      _storageKey,
       jsonEncode({
         'settings': {
           'focusMinutes': data.settings.focusMinutes,

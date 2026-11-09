@@ -1,46 +1,54 @@
 # Pomodoro Belajar
 
-Aplikasi timer Pomodoro sederhana dengan satu layar utama dan pengaturan durasi
-yang disimpan di perangkat. Dapat dijalankan sebagai aplikasi Android maupun
-melalui browser lokal.
+Aplikasi Flutter untuk membantu belajar dalam sesi fokus Pomodoro. Aplikasi
+memiliki akun lokal, pilihan masuk tanpa akun, timer tersimpan lokal,
+pengaturan durasi, dan tampilan yang mengikuti tema sistem.
 
 ## Fitur
 
-- Mode fokus, istirahat pendek, dan istirahat panjang.
-- Halaman login demo lokal dengan validasi form dan tombol keluar.
-- Countdown mengikuti deadline sehingga tetap akurat setelah aplikasi kembali
-  dibuka.
-- Siklus fokus, hitungan sesi fokus harian, dan pengaturan durasi tersimpan lokal.
-- Tema terang/gelap mengikuti pengaturan sistem.
-- Validasi durasi serta preview satu siklus pada lembar pengaturan.
-- Notifikasi browser saat sesi selesai, selama halaman tetap terbuka dan izin
-  notifikasi sudah diberikan.
-- Suara aset lokal saat sesi timer selesai.
+- Onboarding singkat dan formulir pendaftaran akun lokal.
+- Masuk dengan email/kata sandi, opsi ingat sesi, dan penguncian sementara
+  setelah lima percobaan masuk yang gagal.
+- Masuk tanpa akun dengan sesi tamu; progresnya tersimpan lokal dan tetap
+  terpisah dari data akun.
+- Pemulihan dan pengubahan kata sandi melalui jawaban keamanan, serta
+  pengubahan nama dan penghapusan akun.
+- Timer fokus, istirahat pendek, dan istirahat panjang yang menghitung mundur
+  berdasarkan deadline sehingga dapat dipulihkan setelah aplikasi ditutup.
+- Dialog akhir sesi menawarkan mulai jeda atau kembali ke fokus. Alarm suara
+  berulang berbunyi di web dan ponsel sampai pengguna memilih salah satu
+  tindakan pada dialog. Di web, notifikasi browser juga dapat diaktifkan dari
+  layar timer.
+- Hitungan fokus harian, pengaturan durasi, dan data timer yang dipisahkan per
+  akun.
+- Tema terang/gelap sistem, font lokal Inter, serta
+  ilustrasi tomat lokal.
 
-Tidak ada akun, server, database, notifikasi terjadwal, statistik, atau pencatatan
-mata kuliah. Notifikasi web tidak dijamin saat tab/browser ditutup atau halaman
-ditangguhkan; push notification memerlukan service worker dan server.
-Login saat ini hanya demo navigasi: tidak memverifikasi atau membuat akun dan
-tidak boleh digunakan sebagai autentikasi untuk data sensitif.
+## Batasan penyimpanan lokal
 
-## Menjalankan secara lokal
+Akun dan progres disimpan di perangkat melalui `shared_preferences`; tidak ada
+server, sinkronisasi, atau pemulihan lintas perangkat. Penyimpanan tersebut
+tidak terenkripsi. Kata sandi dan jawaban keamanan disimpan sebagai hash
+bersalt dengan pengulangan SHA-256, bukan sebagai teks asli. Ini hanya
+perlindungan dasar untuk aplikasi belajar lokal dan bukan pengganti autentikasi
+atau penyimpanan rahasia yang dirancang untuk penggunaan sensitif/produksi.
+Menghapus akun juga menghapus data timer lokal dengan ID akun tersebut.
 
-Prasyarat: Flutter SDK dan, untuk Android, Android SDK/emulator atau perangkat.
-Web memerlukan Chrome/Chromium.
+Pengingat web memerlukan izin notifikasi browser dan koneksi HTTPS atau
+localhost. Tab timer harus tetap terbuka; browser dapat menunda timer saat tab
+tidak aktif, dan alarm/notifikasi tidak dijadwalkan ketika browser ditutup.
+Sesi yang melewati deadline diselesaikan saat timer dipulihkan.
+
+## Menjalankan
+
+Prasyarat: Flutter SDK; untuk Android, Android SDK/emulator atau perangkat.
 
 ```bash
 flutter pub get
-flutter run -d chrome
+flutter run
 ```
 
-Untuk menjalankan di Android:
-
-```bash
-flutter devices
-flutter run -d <device-id>
-```
-
-Verifikasi/build:
+Verifikasi:
 
 ```bash
 flutter analyze
@@ -48,21 +56,21 @@ flutter test
 flutter build apk --debug
 ```
 
-Data disimpan oleh `shared_preferences` pada browser/perangkat yang sedang
-digunakan. Data web dan Android terpisah.
-
 ## Struktur
 
 ```text
 lib/
-├── app/                 # App shell dan tema
-├── core/                # Konstanta dan fungsi kecil yang dapat diuji
-├── data/                # Model dan penyimpanan lokal
-└── features/timer/      # Engine, controller, layar, dan pengaturan
-assets/images/           # Ilustrasi tomat lokal
+├── app/                 # App shell, rute, tema
+├── core/                # Validator dan fungsi yang dapat diuji
+├── data/                # Model serta penyimpanan lokal akun/timer
+├── features/auth/       # Onboarding, akun, pemulihan, profil
+├── features/timer/      # Engine, controller, layar, pengaturan
+└── shared/              # Komponen UI bersama
+assets/fonts/            # Font lokal berlisensi OFL
+assets/images/           # Ilustrasi tomat
 docs/                    # Pemetaan materi pembelajaran
 test/                    # Unit dan widget tests
 ```
 
-Untuk ringkasan konsep Flutter/Dart yang dipakai, lihat
+Untuk ringkasan konsep Flutter/Dart, lihat
 [docs/PEMETAAN_MATERI.md](docs/PEMETAAN_MATERI.md).

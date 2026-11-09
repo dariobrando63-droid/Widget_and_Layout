@@ -1,5 +1,5 @@
 name: pomodoro_belajar
-description: "Pomodoro Belajar sederhana untuk Android dan web."
+description: "Pomodoro Belajar dengan akun lokal dan timer fokus."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -28,7 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  audioplayers: ^6.8.1
+  crypto: ^3.0.6
   flutter:
     sdk: flutter
   shared_preferences: ^2.5.6
@@ -58,7 +58,16 @@ flutter:
 
   assets:
     - assets/images/tomato.png
-    - assets/sounds/timer_done.mp3
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.otf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.otf
+          weight: 500
+        - asset: assets/fonts/Inter-Bold.otf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

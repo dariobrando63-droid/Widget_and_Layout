@@ -2,24 +2,28 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'dart:async';
-
-import 'package:audioplayers/audioplayers.dart';
-
 import '../../app/theme/app_theme.dart';
-import '../../core/notifications/web_notification_service.dart';
 import '../../core/utils/format_waktu.dart';
 import '../../core/utils/pesan_semangat.dart';
 import '../../core/utils/pomodoro_cycle_utils.dart';
+import '../../core/notifications/web_session_alerts.dart';
 import '../../data/models/pomodoro_models.dart';
 import 'pomodoro_controller.dart';
 import 'settings_sheet.dart';
 
 /// Layar tunggal untuk timer, hitungan fokus, dan pengaturan sesi.
 class TimerScreen extends StatefulWidget {
-  const TimerScreen({required this.controller, this.onLogout, super.key});
+  const TimerScreen({
+    required this.controller,
+    this.accountName,
+    this.onProfile,
+    this.onLogout,
+    super.key,
+  });
 
   final PomodoroController controller;
+  final String? accountName;
+  final VoidCallback? onProfile;
   final VoidCallback? onLogout;
 
   @override
@@ -27,15 +31,13 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
-  final AudioPlayer _audioPlayer = AudioPlayer();
-  int _lastCompleted = 0;
   int _lastSessionCompletionEvents = 0;
+  bool _completionDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _lastCompleted = widget.controller.completedFocusToday;
     _lastSessionCompletionEvents = widget.controller.sessionCompletionEvents;
     widget.controller.addListener(_onControllerChanged);
   }
@@ -46,7 +48,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onControllerChanged);
       widget.controller.addListener(_onControllerChanged);
-      _lastCompleted = widget.controller.completedFocusToday;
       _lastSessionCompletionEvents = widget.controller.sessionCompletionEvents;
     }
   }
@@ -59,56 +60,78 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
   }
 
   void _onControllerChanged() {
-    final completed = widget.controller.completedFocusToday;
-    final justCompleted = completed > _lastCompleted;
     final sessionCompleted =
         widget.controller.sessionCompletionEvents >
         _lastSessionCompletionEvents;
-    _lastCompleted = completed;
     _lastSessionCompletionEvents = widget.controller.sessionCompletionEvents;
-    if (!mounted) return;
-    if (sessionCompleted) unawaited(_playCompletionSound());
-    if (sessionCompleted && WebNotificationService.isPermissionGranted) {
-      final mode = widget.controller.lastCompletedMode;
-      try {
-        WebNotificationService.showNotification(
-          title: 'Timer selesai',
-          body: mode == PomodoroMode.focus
-              ? 'Sesi fokus selesai. Saatnya istirahat sejenak.'
-              : 'Waktu istirahat selesai. Siap mulai fokus lagi?',
-        );
-      } catch (error) {
-        _showMessage('Notifikasi gagal ditampilkan: $error');
-      }
+    final finishedMode = widget.controller.lastCompletedMode;
+    if (!mounted ||
+        !sessionCompleted ||
+        finishedMode == null ||
+        _completionDialogOpen) {
+      return;
     }
-    if (!justCompleted) return;
+    _completionDialogOpen = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      HapticFeedback.mediumImpact();
-      _showMessage('Sesi fokus selesai. Istirahat sejenak, ya!');
+      if (mounted) _presentSessionCompletion(finishedMode);
     });
   }
 
-  Future<void> _playCompletionSound() async {
-    try {
-      await _audioPlayer.play(AssetSource('sounds/timer_done.mp3'));
-    } catch (error) {
-      if (mounted) _showMessage('Suara timer gagal diputar: $error');
-    }
-  }
+  Future<void> _presentSessionCompletion(PomodoroMode finishedMode) async {
+    final nextMode = widget.controller.timer.mode;
+    final finishedLabel = detailMode(finishedMode).label;
+    final nextLabel = detailMode(nextMode).label;
+    final isFocus = finishedMode == PomodoroMode.focus;
+    final title = '$finishedLabel selesai';
+    final body = isFocus
+        ? 'Waktunya ${nextLabel.toLowerCase()}. Mulai sekarang?'
+        : 'Jeda selesai. Siap kembali ke sesi fokus?';
 
-  Future<void> _enableWebNotifications() async {
     try {
-      final granted = await WebNotificationService.requestPermission();
+      HapticFeedback.mediumImpact();
+      if (kIsWeb) {
+        try {
+          WebSessionAlerts.notifySessionComplete(title: title, body: body);
+        } catch (error) {
+          _showMessage('Notifikasi browser gagal ditampilkan: $error');
+        }
+      }
+      try {
+        await WebSessionAlerts.startAlarm();
+      } catch (error) {
+        _showMessage('Suara alarm gagal diputar: $error');
+      }
+
       if (!mounted) return;
-      _showMessage(
-        granted
-            ? 'Notifikasi berhasil diaktifkan.'
-            : 'Izin notifikasi belum diberikan. Periksa izin situs di browser.',
+      final startNext = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: Icon(
+            isFocus ? Icons.coffee_outlined : Icons.center_focus_strong,
+          ),
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Nanti'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(isFocus ? 'Mulai $nextLabel' : 'Lanjut Sesi Fokus'),
+            ),
+          ],
+        ),
       );
-      setState(() {});
-    } catch (error) {
-      if (mounted) _showMessage('Gagal meminta izin notifikasi: $error');
+      if (startNext == true &&
+          mounted &&
+          widget.controller.timer.mode == nextMode) {
+        await widget.controller.startOrResume();
+      }
+    } finally {
+      WebSessionAlerts.stopAlarm();
+      _completionDialogOpen = false;
     }
   }
 
@@ -118,6 +141,25 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
       ..showSnackBar(
         SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
+  }
+
+  Future<void> _enableWebAlerts() async {
+    try {
+      final granted = await WebSessionAlerts.enable();
+      if (!mounted) return;
+      setState(() {});
+      _showMessage(
+        granted
+            ? 'Notifikasi dan suara alarm berhasil diaktifkan.'
+            : WebSessionAlerts.isSecureContext
+            ? 'Izin notifikasi belum diberikan. Periksa izin situs di browser.'
+            : 'Notifikasi browser memerlukan koneksi HTTPS atau localhost.',
+      );
+    } catch (error) {
+      if (mounted) {
+        _showMessage('Pengingat web gagal diaktifkan: $error');
+      }
+    }
   }
 
   Future<void> _openSettings() async {
@@ -164,6 +206,12 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
               ],
             ),
             actions: [
+              if (widget.onProfile != null)
+                IconButton(
+                  onPressed: widget.onProfile,
+                  tooltip: widget.accountName ?? 'Profil',
+                  icon: const Icon(Icons.account_circle_outlined),
+                ),
               if (widget.onLogout != null)
                 IconButton(
                   onPressed: widget.onLogout,
@@ -189,6 +237,14 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                       selected: mode,
                       onSelected: controller.selectMode,
                     ),
+                    if (kIsWeb && !WebSessionAlerts.isReady) ...[
+                      const SizedBox(height: 12),
+                      _WebAlertsCard(
+                        secureContext: WebSessionAlerts.isSecureContext,
+                        permissionDenied: WebSessionAlerts.notificationDenied,
+                        onEnable: _enableWebAlerts,
+                      ),
+                    ],
                     const SizedBox(height: 22),
                     Center(
                       child: _TimerDial(
@@ -212,20 +268,6 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 18),
                     _FocusCountCard(count: controller.completedFocusToday),
-                    if (kIsWeb) ...[
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: WebNotificationService.isPermissionGranted
-                            ? null
-                            : _enableWebNotifications,
-                        icon: const Icon(Icons.notifications_active_outlined),
-                        label: Text(
-                          WebNotificationService.isPermissionGranted
-                              ? 'Notifikasi aktif'
-                              : 'Aktifkan notifikasi',
-                        ),
-                      ),
-                    ],
                     if (controller.lastError != null) ...[
                       const SizedBox(height: 12),
                       const _StorageWarning(),
@@ -264,8 +306,65 @@ class _TimerScreenState extends State<TimerScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(_onControllerChanged);
-    unawaited(_audioPlayer.dispose());
+    WebSessionAlerts.stopAlarm();
     super.dispose();
+  }
+}
+
+class _WebAlertsCard extends StatelessWidget {
+  const _WebAlertsCard({
+    required this.secureContext,
+    required this.permissionDenied,
+    required this.onEnable,
+  });
+
+  final bool secureContext;
+  final bool permissionDenied;
+  final VoidCallback onEnable;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = !secureContext
+        ? 'Notifikasi web memerlukan HTTPS atau localhost.'
+        : permissionDenied
+        ? 'Izin notifikasi diblokir. Ubah izin situs ini melalui pengaturan browser.'
+        : 'Aktifkan notifikasi dan suara alarm agar tidak melewatkan pergantian sesi. Timer harus tetap terbuka.';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.notifications_active_outlined),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pengingat sesi',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(message, style: Theme.of(context).textTheme.bodySmall),
+                  if (secureContext && !permissionDenied) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: onEnable,
+                      child: Text(
+                        WebSessionAlerts.notificationGranted
+                            ? 'Aktifkan suara alarm'
+                            : 'Aktifkan notifikasi & suara',
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
